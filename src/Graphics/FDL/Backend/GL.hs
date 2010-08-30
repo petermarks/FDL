@@ -12,6 +12,22 @@ compile :: FDL Picture -> IO (IO ())
 compile Circle = return $ renderQuadric
     (QuadricStyle Nothing NoTextureCoordinates Outside FillStyle)
     (Disk 0 1 36 1)
+compile Star = return . renderPrimitive TriangleStrip . mapM_ vertex $
+    [ point 0
+    , point 2
+    , centre
+    , point 4
+    , point 1
+    , centre
+    , point 3
+    , point 0
+    ]
+    where
+      point :: Double -> Vertex2 Double
+      point theta = Vertex2 (0 - sin (theta * pi * 2 / 5)) (cos (theta * pi * 2 / 5))
+      centre :: Vertex2 Double
+      centre = Vertex2 0 0
+     
 compile prim = error $ "can't compile primative"
 
 run :: IO () -> IO ()
