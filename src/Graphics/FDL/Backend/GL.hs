@@ -11,6 +11,7 @@ compile :: L.FDL L.Picture -> IO (IO ())
 compile = return . compilePic
 
 compilePic :: L.FDL L.Picture -> IO()
+compilePic L.NOP = return ()
 compilePic L.Circle = renderQuadric
     (QuadricStyle Nothing NoTextureCoordinates Outside FillStyle)
     (Disk 0 1 36 1)
@@ -32,7 +33,13 @@ compilePic L.Star = renderPrimitive TriangleStrip . mapM_ vertex $
 compilePic (L.Color (L.RGBA r g b a) pic) = preservingAttrib [ColorBufferAttributes] $ do
     color $ Color4 r g b a
     compilePic pic
-compilePic prim = error $ "can't compile primative"
+compilePic (L.Scale factor pic) = preservingMatrix $ do
+    scale s s 1
+    compilePic pic
+    where
+      s :: GLdouble
+      s = realToFrac factor
+compilePic (L.Comp pics) = mapM_ compilePic pics
 
 run :: IO () -> IO ()
 run prog = do

@@ -1,6 +1,6 @@
 # FDL
 
-FDL (pronounced "Fuddle") stands for Functional Drawing Language. It is a language for describing animated drawings. It is implemented in Haskell as an embedded DSL and renders using OpenGL. It is an example of Functional Temporal Programming (sometime called Functional Reactive Programming or FRP)
+FDL (pronounced "Fuddle") stands for Functional Drawing Language. It is a language for describing animated pictures. It is implemented in Haskell as an embedded DSL and renders using OpenGL. It is an example of Functional Temporal Programming (sometime called Functional Reactive Programming or FRP)
 
 ## History
 
@@ -64,7 +64,7 @@ For more examples see the examples folder.
 
 I haven't added a cabal file yet, so to run an example use the ghc command:
 
-    ghc -fglasgow-exts -O2 -outputdir out -i src -o draw --make examples/xxx.hs
+    ghc -fglasgow-exts -O2 -outputdir out -isrc -o draw --make examples/xxx.hs
 
 where xxx.hs is whichever example you want to run. To run it just type:
 
@@ -72,7 +72,7 @@ where xxx.hs is whichever example you want to run. To run it just type:
 
 ## Status
 
-So the vision is all very nice, but it isn't there yet. So far, it can draw circles and stars in any color, but that's it. I know how I'm going to do all the stuff above, so hopefully it'll come quite quickly.
+So the vision is all very nice, but it isn't there yet. So far, it can draw circles and stars in any color and size, but that's it. I know how I'm going to do all the stuff above, so hopefully it'll come quite quickly.
 
 ## Learning
 
