@@ -36,19 +36,27 @@ compilePic prim = error $ "can't compile primative"
 
 run :: IO () -> IO ()
 run prog = do
+    initialWindowSize $= Size 600 600
     getArgsAndInitialize
     initialDisplayMode $= [RGBAMode, WithAlphaComponent, DoubleBuffered]
     win <- createWindow "FDL"
     displayCallback $= display prog
-    idleCallback $= Just (postRedisplay (Just win))
-    initDrawing
+    idleCallback    $= Just (postRedisplay (Just win))
+    reshapeCallback $= Just reshape
     mainLoop
 
-initDrawing :: IO ()
-initDrawing = do
+reshape :: Size -> IO ()
+reshape size@(Size w h) = do
     matrixMode $= Projection
     loadIdentity
-    ortho2D (-1) 1 (-1) 1
+    if w <= h
+      then ortho2D (-1) 1 (-1 * hh/ww) (hh/ww)
+      else ortho2D (-1 * ww/hh) (ww/hh) (-1) 1
+    matrixMode $= Modelview 0
+    viewport $= ((Position 0 0), size)
+    where
+      ww = fromIntegral w
+      hh = fromIntegral h
 
 display :: IO () -> IO ()
 display prog = do
