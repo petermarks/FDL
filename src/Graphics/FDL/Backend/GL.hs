@@ -39,6 +39,13 @@ compilePic (L.Scale factor pic) = preservingMatrix $ do
     where
       s :: GLdouble
       s = realToFrac factor
+compilePic (L.Move (x,y) pic) = preservingMatrix $ do
+    translate $ Vector3 xx yy 0
+    compilePic pic
+    where
+      xx, yy :: GLdouble
+      xx = realToFrac x
+      yy = realToFrac y
 compilePic (L.Comp pics) = mapM_ compilePic pics
 
 run :: IO () -> IO ()

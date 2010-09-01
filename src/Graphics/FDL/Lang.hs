@@ -17,7 +17,9 @@ module Graphics.FDL.Lang
   , pink
   , purple
   , scale
+  , move
   , (+>)
+  , withEach
   ) where
 
 import Data.Monoid
@@ -33,6 +35,7 @@ data FDL a where
     Color  :: FDL Color -> FDL Picture -> FDL Picture
     RGBA   :: Double -> Double -> Double -> Double -> FDL Color
     Scale  :: Double -> FDL Picture -> FDL Picture
+    Move   :: (Double, Double) -> FDL Picture -> FDL Picture
     Comp   :: [FDL Picture] -> FDL Picture
 
 circle :: FDL Picture
@@ -61,6 +64,9 @@ purple  = rgb (1/2) 0 1
 scale :: Double -> FDL Picture -> FDL Picture
 scale = Scale
 
+move :: (Double, Double) -> FDL Picture -> FDL Picture
+move = Move
+
 instance Monoid (FDL Picture) where
     mempty      = NOP
     mappend a b = Comp [a, b]
@@ -70,4 +76,7 @@ instance Monoid (FDL Picture) where
 (+>) = mappend
 
 infixr 5 +>
+
+withEach :: [a] -> (a -> FDL Picture) -> FDL Picture
+withEach as f = Comp . map f $ as
 
