@@ -3,19 +3,53 @@ module Graphics.FDL.Backend.GL
   , run
   ) where
 
+import Data.Time
+import Data.IORef
+import Control.Monad.Reader
+import Control.Applicative
 import Graphics.UI.GLUT
 
 import qualified Graphics.FDL.Lang as L
 
-compile :: L.FDL L.Picture -> IO (IO ())
-compile = return . compilePic
+type family Output a :: *
 
-compilePic :: L.FDL L.Picture -> IO()
-compilePic L.NOP = return ()
-compilePic L.Circle = renderQuadric
+type instance Output L.Picture = ()
+type instance Output L.Color   = Color4 Double
+type instance Output Double    = Double
+
+data CompileContext = CompileContext
+    { ccStart :: UTCTime
+    , ccTimeRef  :: IORef Double
+    }
+
+type Compiler a = Reader CompileContext (IO a)
+
+compile :: L.FDL L.Picture -> IO (IO ())
+compile pic = do
+    start   <- getCurrentTime
+    timeRef <- newIORef 0
+    return $ runReader (compileProg pic) (CompileContext start timeRef)
+
+compileProg :: L.FDL L.Picture -> Compiler ()
+compileProg pic = do
+    initAction <- initFrame
+    picAction  <- comp pic
+    return $ initAction >> picAction
+
+initFrame :: Compiler ()
+initFrame = do
+    start   <- asks ccStart
+    timeRef <- asks ccTimeRef
+    return $ do
+      now <- getCurrentTime
+      writeIORef timeRef . realToFrac $ diffUTCTime now start
+
+comp :: L.FDL a -> Compiler (Output a)
+comp L.NOP = return $ return ()
+comp L.Circle = return $ renderQuadric
     (QuadricStyle Nothing NoTextureCoordinates Outside FillStyle)
     (Disk 0 1 36 1)
-compilePic L.Star = renderPrimitive TriangleStrip . mapM_ vertex $
+comp L.Star = return $ renderPrimitive TriangleStrip . mapM_ vertex $
     [ point 0
     , point 2
     , centre
@@ -30,23 +64,55 @@ compilePic L.Star = renderPrimitive TriangleStrip . mapM_ vertex $
       point theta = Vertex2 (0 - sin (theta * pi * 2 / 5)) (cos (theta * pi * 2 / 5))
       centre :: Vertex2 Double
       centre = Vertex2 0 0
-compilePic (L.Color (L.RGBA r g b a) pic) = preservingAttrib [ColorBufferAttributes] $ do
-    color $ Color4 r g b a
-    compilePic pic
-compilePic (L.Scale factor pic) = preservingMatrix $ do
-    scale s s 1
-    compilePic pic
-    where
-      s :: GLdouble
-      s = realToFrac factor
-compilePic (L.Move (x,y) pic) = preservingMatrix $ do
-    translate $ Vector3 xx yy 0
-    compilePic pic
-    where
-      xx, yy :: GLdouble
-      xx = realToFrac x
-      yy = realToFrac y
-compilePic (L.Comp pics) = mapM_ compilePic pics
+comp (L.Color (L.RGBA r g b a) pic) = do
+    ra <- comp r
+    ga <- comp g
+    ba <- comp b
+    aa <- comp a
+    pica <- comp pic    
+    return $ preservingAttrib [ColorBufferAttributes] $ do
+      c <- Color4 <$> ra <*> ga <*> ba <*> aa
+      color c
+      pica
+comp (L.Scale factor pic) = do
+    factora <- fmap realToFrac <$> comp factor :: Compiler GLdouble
+    pica <- comp pic
+    return $ preservingMatrix $ do
+      s <- factora
+      scale s s 1
+      pica
+comp (L.Move (x,y) pic) = do
+    xa <- fmap realToFrac <$> comp x :: Compiler GLdouble
+    ya <- fmap realToFrac <$> comp y :: Compiler GLdouble
+    pica <- comp pic
+    return $ preservingMatrix $ do
+      v <- Vector3 <$> xa <*> ya <*> pure 0
+      translate v
+      pica
+comp (L.Rotate a pic) = do
+    aa <- fmap realToFrac <$> comp a :: Compiler GLdouble
+    pica <- comp pic
+    return $ preservingMatrix $ do
+      degrees <- (* 360) <$> aa
+      rotate degrees (Vector3 0 0 1)
+      pica
+comp (L.Const v) =
+    return . return $ v
+comp (L.Negate a) = do
+    aa <- comp a
+    return $
+      negate <$> aa
+comp (L.Divide a b) = do
+    aa <- comp a
+    ba <- comp b
+    return $
+      (/) <$> aa <*> ba
+comp (L.Time) = do
+    timeRef <- asks ccTimeRef
+    return $
+      readIORef timeRef
+comp (L.Comp pics) = 
+    sequence_ <$> mapM comp pics
 
 run :: IO () -> IO ()
 run prog = do

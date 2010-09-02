@@ -72,7 +72,9 @@ where xxx.hs is whichever example you want to run. To run it just type:
 
 ## Status
 
-So the vision is all very nice, but it isn't there yet. So far, it can draw circles and stars in any color and size, but that's it. I know how I'm going to do all the stuff above, so hopefully it'll come quite quickly.
+So the vision is all very nice, but it isn't there yet. So far, it can draw circles and stars in any color and do some basic transformations. It can also set a numeric attribute as the current run time. I know how I'm going to do all the stuff above, so hopefully it'll come quite quickly.
+
+The mechanism to do repetitions is a bit of a hack as I haven't implemented lambdas yet and there is currently no optimization.
 
 ## Learning
 
