@@ -1,7 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Graphics.FDL.Lang 
-  ( FDL(..)
+  ( FDL
+  , Prim(..)
+  , LCExpr(..)
   , Picture
   , Color
   , circle
@@ -36,32 +38,39 @@ data Picture
 
 data Color
 
-data FDL a where
-    NOP    :: FDL Picture
-    Circle :: FDL Picture
-    Star   :: FDL Picture
-    Color  :: FDL Color -> FDL Picture -> FDL Picture
-    RGBA   :: FDL Double -> FDL Double -> FDL Double -> FDL Double -> FDL Color
-    Scale  :: FDL Double -> FDL Picture -> FDL Picture
-    Move   :: (FDL Double, FDL Double) -> FDL Picture -> FDL Picture
-    Rotate :: FDL Double -> FDL Picture -> FDL Picture
-    Const  :: Double -> FDL Double
-    Negate :: FDL Double -> FDL Double
-    Divide :: FDL Double -> FDL Double -> FDL Double
-    Time   :: FDL Double
-    Comp   :: [FDL Picture] -> FDL Picture
+data Prim :: * -> * where
+    NOP    :: Prim Picture
+    Circle :: Prim Picture
+    Star   :: Prim Picture
+    Color  :: Prim (Color -> Picture -> Picture)
+    RGBA   :: Prim (Double -> Double -> Double -> Double -> Color)
+    Scale  :: Prim (Double -> Picture -> Picture)
+    Move   :: Prim ((Double, Double) -> Picture -> Picture)
+    Rotate :: Prim (Double -> Picture -> Picture)
+    Const  :: Double -> Prim Double
+    Negate :: Prim (Double -> Double)
+    Divide :: Prim (Double -> Double -> Double)
+    Time   :: Prim Double
+    Pair   :: Prim (a -> b -> (a, b))
+    Comp   :: Prim (Picture -> Picture -> Picture)
+
+data LCExpr :: * -> * where
+    Prim  :: Prim a -> LCExpr a
+    Apply :: LCExpr (a -> b) -> LCExpr a -> LCExpr b
+
+type FDL a = LCExpr a    
 
 circle :: FDL Picture
-circle = Circle
+circle = Prim Circle
 
 star :: FDL Picture
-star = Star
+star = Prim Star
 
 color :: FDL Color -> FDL Picture -> FDL Picture
-color = Color
+color = apply2 Color
 
 rgb :: FDL Double -> FDL Double -> FDL Double -> FDL Color
-rgb r g b = RGBA r g b 1
+rgb r g b = apply4 RGBA r g b 1
 
 red     = rgb 1 0 0
 green   = rgb 0 1 0
@@ -75,21 +84,20 @@ pink    = rgb 1 0.75 0.75
 purple  = rgb 0.5 0 1
 
 scale :: FDL Double -> FDL Picture -> FDL Picture
-scale = Scale
+scale = apply2 Scale
 
 move :: (FDL Double, FDL Double) -> FDL Picture -> FDL Picture
-move = Move
+move (x, y) = apply2 Move (apply2 Pair x y) 
 
 rotate :: FDL Double -> FDL Picture -> FDL Picture
-rotate = Rotate
+rotate = apply2 Rotate
 
 time :: FDL Double
-time = Time
+time = Prim Time
 
 instance Monoid (FDL Picture) where
-    mempty      = NOP
-    mappend a b = Comp [a, b]
-    mconcat as  = Comp as
+    mempty  = Prim NOP
+    mappend = apply2 Comp
 
 (+>) :: FDL Picture -> FDL Picture -> FDL Picture
 (+>) = mappend
@@ -97,7 +105,7 @@ instance Monoid (FDL Picture) where
 infixr 5 +>
 
 withEach :: [Double] -> (FDL Double -> FDL Picture) -> FDL Picture
-withEach as f = Comp . map (f . Const) $ as
+withEach as f = mconcat . map (f . Prim . Const) $ as
 
 class Numeric n where
     fromInteger  :: Integer  -> n
@@ -105,11 +113,11 @@ class Numeric n where
     negate       :: n -> n
     (/)          :: n -> n -> n
 
-instance Numeric (FDL Double) where
-    fromInteger  = Const . P.fromInteger
-    fromRational = Const . P.fromRational
-    negate       = Negate
-    (/)          = Divide 
+instance Numeric (LCExpr Double) where
+    fromInteger  = Prim . Const . P.fromInteger
+    fromRational = Prim . Const . P.fromRational
+    negate       = apply1 Negate
+    (/)          = apply2 Divide 
 
 instance Numeric Double where
     fromInteger  = P.fromInteger
@@ -117,5 +125,21 @@ instance Numeric Double where
     negate       = P.negate
     (/)          = (P./)
 
+(<*>) :: LCExpr (a -> b) -> LCExpr a -> LCExpr b
+(<*>) = Apply
+
+infixl 5 <*>
+
+apply1 :: Prim (a -> b) -> LCExpr a -> LCExpr b
+apply1 f a = Prim f <*> a
+
+apply2 :: Prim (a -> b -> c) -> LCExpr a -> LCExpr b -> LCExpr c
+apply2 f a b = Prim f <*> a <*> b
+
+apply3 :: Prim (a -> b -> c -> d) -> LCExpr a -> LCExpr b -> LCExpr c -> LCExpr d
+apply3 f a b c = Prim f <*> a <*> b <*> c
+
+apply4 :: Prim (a -> b -> c -> d -> e) -> LCExpr a -> LCExpr b -> LCExpr c -> LCExpr d -> LCExpr e
+apply4 f a b c d = Prim f <*> a <*> b <*> c <*> d
 
 
