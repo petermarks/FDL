@@ -6,6 +6,7 @@ module Graphics.FDL.Lang
   , LCExpr(..)
   , Picture
   , Color
+  , runLang
   , circle
   , star
   , color
@@ -33,6 +34,8 @@ module Graphics.FDL.Lang
 import Prelude (Integer, Rational, Double, (.), ($), map)
 import qualified Prelude as P
 import Data.Monoid
+import Control.Applicative hiding (Const)
+import Control.Monad.State
 
 data Picture
 
@@ -58,13 +61,16 @@ data LCExpr :: * -> * where
     Prim  :: Prim a -> LCExpr a
     Apply :: LCExpr (a -> b) -> LCExpr a -> LCExpr b
 
-type FDL a = LCExpr a    
+type FDL a = State P.Int (LCExpr a)
+
+runLang :: FDL a -> LCExpr a
+runLang = P.flip evalState P.minBound
 
 circle :: FDL Picture
-circle = Prim Circle
+circle = prim Circle
 
 star :: FDL Picture
-star = Prim Star
+star = prim Star
 
 color :: FDL Color -> FDL Picture -> FDL Picture
 color = apply2 Color
@@ -93,10 +99,10 @@ rotate :: FDL Double -> FDL Picture -> FDL Picture
 rotate = apply2 Rotate
 
 time :: FDL Double
-time = Prim Time
+time = prim Time
 
 instance Monoid (FDL Picture) where
-    mempty  = Prim NOP
+    mempty  = prim NOP
     mappend = apply2 Comp
 
 (+>) :: FDL Picture -> FDL Picture -> FDL Picture
@@ -105,7 +111,7 @@ instance Monoid (FDL Picture) where
 infixr 5 +>
 
 withEach :: [Double] -> (FDL Double -> FDL Picture) -> FDL Picture
-withEach as f = mconcat . map (f . Prim . Const) $ as
+withEach as f = mconcat . map (f . prim . Const) $ as
 
 class Numeric n where
     fromInteger  :: Integer  -> n
@@ -113,9 +119,9 @@ class Numeric n where
     negate       :: n -> n
     (/)          :: n -> n -> n
 
-instance Numeric (LCExpr Double) where
-    fromInteger  = Prim . Const . P.fromInteger
-    fromRational = Prim . Const . P.fromRational
+instance Numeric (FDL Double) where
+    fromInteger  = prim . Const . P.fromInteger
+    fromRational = prim . Const . P.fromRational
     negate       = apply1 Negate
     (/)          = apply2 Divide 
 
@@ -125,21 +131,21 @@ instance Numeric Double where
     negate       = P.negate
     (/)          = (P./)
 
-(<*>) :: LCExpr (a -> b) -> LCExpr a -> LCExpr b
-(<*>) = Apply
+prim :: Prim a -> FDL a
+prim = return . Prim 
 
-infixl 5 <*>
+apply1 :: Prim (a -> b) -> FDL a -> FDL b
+apply1 f a = Apply (Prim f) <$> a
 
-apply1 :: Prim (a -> b) -> LCExpr a -> LCExpr b
-apply1 f a = Prim f <*> a
+apply2 :: Prim (a -> b -> c) -> FDL a -> FDL b -> FDL c
+apply2 f a b = Apply <$> apply1 f a <*> b
 
-apply2 :: Prim (a -> b -> c) -> LCExpr a -> LCExpr b -> LCExpr c
-apply2 f a b = Prim f <*> a <*> b
+apply3 :: Prim (a -> b -> c -> d) -> FDL a -> FDL b -> FDL c -> FDL d
+apply3 f a b c = Apply <$> apply2 f a b <*> c
 
-apply3 :: Prim (a -> b -> c -> d) -> LCExpr a -> LCExpr b -> LCExpr c -> LCExpr d
-apply3 f a b c = Prim f <*> a <*> b <*> c
+apply4 :: Prim (a -> b -> c -> d -> e) -> FDL a -> FDL b -> FDL c -> FDL d -> FDL e
+apply4 f a b c d = Apply <$> apply3 f a b c <*> d
 
-apply4 :: Prim (a -> b -> c -> d -> e) -> LCExpr a -> LCExpr b -> LCExpr c -> LCExpr d -> LCExpr e
-apply4 f a b c d = Prim f <*> a <*> b <*> c <*> d
-
-
+instance Applicative (State s) where
+    pure  = return
+    (<*>) = ap

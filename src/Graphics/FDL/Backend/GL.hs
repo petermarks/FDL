@@ -35,7 +35,7 @@ compile pic = do
 compileProg :: L.FDL L.Picture -> Compiler (IO ())
 compileProg pic = do
     initAction <- initFrame
-    picAction  <- compExpr pic
+    picAction  <- compExpr . L.runLang $ pic
     return $ initAction >> picAction
 
 initFrame :: Compiler (IO ())
@@ -46,8 +46,8 @@ initFrame = do
       now <- getCurrentTime
       writeIORef timeRef . realToFrac $ diffUTCTime now start
 
-compExpr :: L.FDL a -> Compiler (Output a)
-compExpr (L.Prim  v)   = comp v
+compExpr :: L.LCExpr a -> Compiler (Output a)
+compExpr (L.Prim  v)     = comp v
 compExpr (L.Apply fe ae) = do
     f  <- compExpr fe
     aa <- compExpr ae
