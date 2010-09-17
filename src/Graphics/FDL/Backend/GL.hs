@@ -9,7 +9,7 @@ import Control.Monad.Reader
 import Control.Applicative
 import Graphics.UI.GLUT
 
-import qualified Graphics.FDL.Lang as L
+import qualified Graphics.FDL.Lang.Impl as L
 
 type family Output a :: *
 
