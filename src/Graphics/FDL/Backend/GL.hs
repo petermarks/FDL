@@ -35,7 +35,7 @@ compile pic = do
 compileProg :: L.FDL L.Picture -> Compiler (IO ())
 compileProg pic = do
     initAction <- initFrame
-    picAction  <- compExpr . L.runLang $ pic
+    picAction  <- compExpr . L.toCL $ pic
     return $ initAction >> picAction
 
 initFrame :: Compiler (IO ())
@@ -46,12 +46,16 @@ initFrame = do
       now <- getCurrentTime
       writeIORef timeRef . realToFrac $ diffUTCTime now start
 
-compExpr :: L.LCExpr a -> Compiler (Output a)
-compExpr (L.Prim  v)     = comp v
-compExpr (L.Apply fe ae) = do
+compExpr :: L.CLExpr a -> Compiler (Output a)
+compExpr (L.P v)     = comp v
+compExpr (L.S)       = return $ \x y z -> x z (y z)
+compExpr (L.K)       = return const
+compExpr (L.I)       = return id
+compExpr (L.A fe ae) = do
     f  <- compExpr fe
     aa <- compExpr ae
     return $ f aa
+compExpr (L.V _)     = error "Unbound variable found in expression."
 
 comp :: L.Prim a -> Compiler (Output a)
 comp L.NOP = return $ return ()
