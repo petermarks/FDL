@@ -24,7 +24,9 @@ module Graphics.FDL.Lang
   , time
   , (+>)
   , with
-  , withEach
+  , withSteps
+  , grid
+  , rotations
   , Numeric(..)
   , ($)
   ) where
@@ -82,33 +84,57 @@ instance Monoid (FDL Picture) where
 infixr 5 +>
 
 with :: (IxC a) => FDL a -> (FDL a -> FDL b) -> FDL b
-with b f = do
+with b f = Apply <$> lambda f <*> b 
+
+withSteps :: FDL Double -> (FDL Double, FDL Double) -> (FDL Double -> FDL Picture) -> FDL Picture
+withSteps steps (from, to) f = apply3 Steps steps (apply2 Pair from to) (lambda f)
+
+grid :: (FDL Double, FDL Double) -> FDL Picture -> FDL Picture
+grid (w, h) f = 
+    scale (1/max w h) $ 
+      withSteps h (1 - h, h - 1) $ \y -> 
+        withSteps w (1 - w, w - 1) $ \x -> 
+          move (x,y) f
+
+rotations :: FDL Double -> FDL Picture -> FDL Picture
+rotations n f = 
+    withSteps n (0, 1 - 1 / n) $ \r -> 
+      rotate r f
+
+lambda :: (IxC a) => (FDL a -> FDL b) -> FDL (a -> b)
+lambda f = do
     i <- get
     put (P.succ i)
     let v = Var ix i
     l <- f . return . VarRef $ v
-    Apply (Lambda v l) <$> b 
-
-withEach :: [Double] -> (FDL Double -> FDL Picture) -> FDL Picture
-withEach as f = mconcat . map (f . prim . Const) $ as
+    return $ Lambda v l
 
 class Numeric n where
     fromInteger  :: Integer  -> n
     fromRational :: Rational -> n
     negate       :: n -> n
     (/)          :: n -> n -> n
+    (-)          :: n -> n -> n
+    max          :: n -> n -> n
+
+infixl 6 -
+infixl 7 /
 
 instance Numeric (FDL Double) where
     fromInteger  = prim . Const . P.fromInteger
     fromRational = prim . Const . P.fromRational
     negate       = apply1 Negate
-    (/)          = apply2 Divide 
+    (/)          = apply2 Divide
+    (-)          = apply2 Sub
+    max          = apply2 Max
 
 instance Numeric Double where
     fromInteger  = P.fromInteger
     fromRational = P.fromRational
     negate       = P.negate
     (/)          = (P./)
+    (-)          = (P.-)
+    max          = (P.max)
 
 prim :: Prim a -> FDL a
 prim = return . Prim 

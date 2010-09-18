@@ -61,8 +61,11 @@ data Prim :: * -> * where
     Const  :: Double -> Prim Double
     Negate :: Prim (Double -> Double)
     Divide :: Prim (Double -> Double -> Double)
+    Sub    :: Prim (Double -> Double -> Double)
+    Max    :: Prim (Double -> Double -> Double)
     Time   :: Prim Double
     Pair   :: Prim (a -> b -> (a, b))
+    Steps  :: Prim (Double -> (Double, Double) -> (Double -> Picture) -> Picture)
     Comp   :: Prim (Picture -> Picture -> Picture)
 
 data Var a = Var (Ix a) Int

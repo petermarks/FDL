@@ -111,6 +111,12 @@ comp L.Negate =
 comp L.Divide =
     return $ \aa ba ->
       (/) <$> aa <*> ba
+comp L.Sub =
+    return $ \aa ba ->
+      (-) <$> aa <*> ba
+comp L.Max =
+    return $ \aa ba ->
+      max <$> aa <*> ba
 comp L.Time = do
     timeRef <- asks ccTimeRef
     return $
@@ -118,6 +124,13 @@ comp L.Time = do
 comp L.Pair =
     return $ \aa ba ->
       (aa, ba)
+comp L.Steps =
+    return $ \stepsa (froma, toa) f -> do
+      steps <- stepsa
+      from  <- froma
+      to    <- toa
+      let next = from + (to - from) / (steps - 1)
+      mapM_ (f . return) $ enumFromThenTo from next to
 comp L.Comp =
     return $ \picaa picba ->
       picaa >> picba
