@@ -1,0 +1,26 @@
+name:               fdl
+version:            0.1
+synopsis:           Functional Drawing Library
+description:        FDL (pronounced "Fuddle") stands for Functional Drawing Language. It is a language
+  for describing animated pictures. It is a Haskell embedded DSL and renders using OpenGL. It is an example
+  of Functional Temporal Programming (usually called Functional Reactive Programming or FRP) 
+category:           Graphics
+license:            BSD3
+license-file:       LICENSE
+author:             Peter Marks
+maintainer:         Peter Marks <peter@indigomail.net>
+Copyright:          (c) 2010 Peter Marks
+cabal-version:      >= 1.2.0
+build-type:         Simple
+
+flag split-base
+
+library
+  hs-source-dirs:   src
+  build-depends:    base ==4.*, mtl ==1.1.*, OpenGL ==2.2.*, GLUT ==2.1.*, time ==1.1.*
+
+  exposed-modules:  Graphics.FDL.GL
+                    Graphics.FDL.Lang
+                    Graphics.FDL.Lang.Impl
+                    Graphics.FDL.Backend.GL
+  ghc-options:      -fglasgow-exts -O2

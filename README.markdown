@@ -62,9 +62,13 @@ For more examples see the examples folder.
 
 ## Running the examples
 
-I haven't added a cabal file yet, so to run an example use the ghc command:
+To install the package, switch to the root directory of the package and run
 
-    ghc -fglasgow-exts -O2 -outputdir out -isrc -o draw --make examples/xxx.hs
+    cabal install
+
+To run an example use the ghc command:
+
+    ghc -fglasgow-exts -O2 -o draw --make examples/xxx.hs
 
 where xxx.hs is whichever example you want to run. To run it just type:
 
