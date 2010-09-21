@@ -53,6 +53,7 @@ data Prim :: * -> * where
     NOP    :: Prim Picture
     Circle :: Prim Picture
     Star   :: Prim Picture
+    Square :: Prim Picture
     Color  :: Prim (Color -> Picture -> Picture)
     RGBA   :: Prim (Double -> Double -> Double -> Double -> Color)
     Scale  :: Prim ((Double, Double) -> Picture -> Picture)
@@ -66,6 +67,9 @@ data Prim :: * -> * where
     Divide :: Prim (Double -> Double -> Double)
     Max    :: Prim (Double -> Double -> Double)
     Time   :: Prim Double
+    Pulse  :: Prim Double
+    Speed  :: Prim (Double -> Picture -> Picture)
+    Delay  :: Prim (Double -> Picture -> Picture)
     Pair   :: Prim (a -> b -> (a, b))
     Dup    :: Prim (a -> (a, a))
     Steps  :: Prim (Double -> (Double, Double) -> (Double -> Picture) -> Picture)

@@ -6,8 +6,10 @@ module Graphics.FDL.Lang
   , Color
   , circle
   , star
+  , square
   , color
   , rgb
+  , rgba
   , red
   , green
   , blue
@@ -22,6 +24,9 @@ module Graphics.FDL.Lang
   , move
   , rotate
   , time
+  , pulse
+  , speed
+  , delay
   , (+>)
   , with
   , withSteps
@@ -51,11 +56,17 @@ circle = prim Circle
 star :: FDL Picture
 star = prim Star
 
+square :: FDL Picture
+square = prim Square
+
 color :: FDL Color -> FDL Picture -> FDL Picture
 color = apply2 Color
 
 rgb :: FDL Double -> FDL Double -> FDL Double -> FDL Color
 rgb r g b = apply4 RGBA r g b 1
+
+rgba :: FDL Double -> FDL Double -> FDL Double -> FDL Double -> FDL Color
+rgba = apply4 RGBA
 
 red     = rgb 1 0 0
 green   = rgb 0 1 0
@@ -79,6 +90,15 @@ rotate = apply2 Rotate
 
 time :: FDL Double
 time = prim Time
+
+pulse :: FDL Double
+pulse = prim Pulse
+
+speed :: FDL Double -> FDL Picture -> FDL Picture
+speed = apply2 Speed
+
+delay :: FDL Double -> FDL Picture -> FDL Picture
+delay = apply2 Delay
 
 instance Monoid (FDL Picture) where
     mempty  = prim NOP

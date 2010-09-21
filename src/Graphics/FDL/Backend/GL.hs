@@ -79,6 +79,8 @@ comp L.Star =
       point theta = Vertex2 (0 - sin (theta * pi * 2 / 5)) (cos (theta * pi * 2 / 5))
       centre :: Vertex2 Double
       centre = Vertex2 0 0
+comp L.Square =
+    return $ rect (Vertex2 (-1::GLdouble) (-1)) (Vertex2 1 1)
 comp L.Color =
     return $ \ca pica -> preservingAttrib [ColorBufferAttributes] $ do
       c <- ca
@@ -128,6 +130,20 @@ comp L.Time = do
     timeRef <- asks ccTimeRef
     return $
       readIORef timeRef
+comp L.Pulse = do
+    timeRef <- asks ccTimeRef
+    return $
+      (0.5 +) . (0.5 *) . sin . (pi * 2 *) <$> readIORef timeRef
+comp L.Speed = do
+    timeRef <- asks ccTimeRef
+    return $ \sa aa -> do
+      s <- sa
+      withModifiedTime timeRef (* s) aa
+comp L.Delay = do
+    timeRef <- asks ccTimeRef
+    return $ \da aa -> do
+      d <- da
+      withModifiedTime timeRef (subtract d) aa
 comp L.Pair =
     return $ \aa ba ->
       (aa, ba)
@@ -145,6 +161,14 @@ comp L.Comp =
     return $ \picaa picba ->
       picaa >> picba
 
+withModifiedTime :: IORef Double -> (Double -> Double) -> IO a -> IO a
+withModifiedTime timeRef f aa = do
+    t <- readIORef timeRef
+    writeIORef timeRef (f t)
+    a <- aa
+    writeIORef timeRef t
+    return a
+
 run :: IO () -> IO ()
 run prog = do
     initialWindowSize $= Size 600 600
@@ -152,9 +176,12 @@ run prog = do
     actionOnWindowClose $= ContinueExectuion
     initialDisplayMode  $= [RGBAMode, WithAlphaComponent, DoubleBuffered]
     win <- createWindow "FDL"
-    displayCallback $= display prog
-    idleCallback    $= Just (postRedisplay (Just win))
-    reshapeCallback $= Just reshape
+    blend               $= Enabled
+    blendEquation       $= FuncAdd
+    blendFunc           $= (SrcAlpha, OneMinusSrcAlpha)
+    displayCallback     $= display prog
+    idleCallback        $= Just (postRedisplay (Just win))
+    reshapeCallback     $= Just reshape
     mainLoop
 
 reshape :: Size -> IO ()
