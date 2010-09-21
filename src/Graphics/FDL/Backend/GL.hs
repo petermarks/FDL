@@ -139,7 +139,8 @@ run :: IO () -> IO ()
 run prog = do
     initialWindowSize $= Size 600 600
     getArgsAndInitialize
-    initialDisplayMode $= [RGBAMode, WithAlphaComponent, DoubleBuffered]
+    actionOnWindowClose $= ContinueExectuion
+    initialDisplayMode  $= [RGBAMode, WithAlphaComponent, DoubleBuffered]
     win <- createWindow "FDL"
     displayCallback $= display prog
     idleCallback    $= Just (postRedisplay (Just win))
