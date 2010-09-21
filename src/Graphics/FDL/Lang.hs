@@ -29,6 +29,7 @@ module Graphics.FDL.Lang
   , rotations
   , fromInteger
   , fromRational
+  , negate
   , (+)
   , (-)
   , (*)
@@ -36,7 +37,7 @@ module Graphics.FDL.Lang
   , ($)
   ) where
 
-import Prelude (Bool, Maybe(..), Int, Integer, Rational, Double, Eq, (.), ($), map)
+import Prelude (Bool, Maybe(..), Int, Integer, Rational, Double, Eq, (.), ($), map, id, uncurry)
 import qualified Prelude as P
 import Data.Monoid
 import Control.Applicative hiding (Const)
@@ -67,11 +68,11 @@ black   = rgb 0 0 0
 pink    = rgb 1 0.75 0.75
 purple  = rgb 0.5 0 1
 
-scale :: FDL Double -> FDL Picture -> FDL Picture
-scale = apply2 Scale
+scale :: (Convertible a (FDL (Double, Double))) => a -> FDL Picture -> FDL Picture
+scale = apply2 Scale . convert
 
-move :: (FDL Double, FDL Double) -> FDL Picture -> FDL Picture
-move (x, y) = apply2 Move (apply2 Pair x y) 
+move :: (Convertible a (FDL (Double, Double))) => a -> FDL Picture -> FDL Picture
+move = apply2 Move . convert
 
 rotate :: FDL Double -> FDL Picture -> FDL Picture
 rotate = apply2 Rotate
@@ -157,6 +158,18 @@ apply3 f a b c = Apply <$> apply2 f a b <*> c
 
 apply4 :: Prim (a -> b -> c -> d -> e) -> FDL a -> FDL b -> FDL c -> FDL d -> FDL e
 apply4 f a b c d = Apply <$> apply3 f a b c <*> d
+
+class Convertible a b where
+    convert :: a -> b
+
+instance Convertible a a where
+    convert = id
+
+instance Convertible (FDL a, FDL b) (FDL (a, b)) where
+    convert = uncurry $ apply2 Pair
+
+instance Convertible (FDL a) (FDL (a, a)) where
+    convert = apply1 Dup
 
 instance Applicative (State s) where
     pure  = return

@@ -55,7 +55,7 @@ data Prim :: * -> * where
     Star   :: Prim Picture
     Color  :: Prim (Color -> Picture -> Picture)
     RGBA   :: Prim (Double -> Double -> Double -> Double -> Color)
-    Scale  :: Prim (Double -> Picture -> Picture)
+    Scale  :: Prim ((Double, Double) -> Picture -> Picture)
     Move   :: Prim ((Double, Double) -> Picture -> Picture)
     Rotate :: Prim (Double -> Picture -> Picture)
     Const  :: Double -> Prim Double
@@ -67,6 +67,7 @@ data Prim :: * -> * where
     Max    :: Prim (Double -> Double -> Double)
     Time   :: Prim Double
     Pair   :: Prim (a -> b -> (a, b))
+    Dup    :: Prim (a -> (a, a))
     Steps  :: Prim (Double -> (Double, Double) -> (Double -> Picture) -> Picture)
     Comp   :: Prim (Picture -> Picture -> Picture)
 

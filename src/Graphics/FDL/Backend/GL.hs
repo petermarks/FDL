@@ -88,9 +88,10 @@ comp L.RGBA =
     return $ \ra ga ba aa ->
       Color4 <$> ra <*> ga <*> ba <*> aa
 comp L.Scale =
-    return $ \factora pica -> preservingMatrix $ do
-      s <- realToFrac <$> factora :: IO GLdouble
-      scale s s 1
+    return $ \(wa, ha) pica -> preservingMatrix $ do
+      w <- realToFrac <$> wa :: IO GLdouble
+      h <- realToFrac <$> ha :: IO GLdouble
+      scale w h 1
       pica
 comp L.Move =
     return $ \(xa, ya) pica -> preservingMatrix $ do
@@ -130,6 +131,9 @@ comp L.Time = do
 comp L.Pair =
     return $ \aa ba ->
       (aa, ba)
+comp L.Dup =
+    return $ \aa ->
+      (aa, aa)
 comp L.Steps =
     return $ \stepsa (froma, toa) f -> do
       steps <- stepsa
