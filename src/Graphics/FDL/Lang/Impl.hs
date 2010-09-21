@@ -60,8 +60,10 @@ data Prim :: * -> * where
     Rotate :: Prim (Double -> Picture -> Picture)
     Const  :: Double -> Prim Double
     Negate :: Prim (Double -> Double)
-    Divide :: Prim (Double -> Double -> Double)
+    Add    :: Prim (Double -> Double -> Double)
     Sub    :: Prim (Double -> Double -> Double)
+    Mult   :: Prim (Double -> Double -> Double)
+    Divide :: Prim (Double -> Double -> Double)
     Max    :: Prim (Double -> Double -> Double)
     Time   :: Prim Double
     Pair   :: Prim (a -> b -> (a, b))

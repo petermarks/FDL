@@ -27,7 +27,12 @@ module Graphics.FDL.Lang
   , withSteps
   , grid
   , rotations
-  , Numeric(..)
+  , fromInteger
+  , fromRational
+  , (+)
+  , (-)
+  , (*)
+  , (/)
   , ($)
   ) where
 
@@ -109,32 +114,34 @@ lambda f = do
     l <- f . return . VarRef $ v
     return $ Lambda v l
 
-class Numeric n where
-    fromInteger  :: Integer  -> n
-    fromRational :: Rational -> n
-    negate       :: n -> n
-    (/)          :: n -> n -> n
-    (-)          :: n -> n -> n
-    max          :: n -> n -> n
+fromInteger  :: Integer  -> FDL Double
+fromInteger  = prim . Const . P.fromInteger
 
+fromRational :: Rational -> FDL Double
+fromRational = prim . Const . P.fromRational
+
+negate       :: FDL Double -> FDL Double
+negate       = apply1 Negate
+
+(+)          :: FDL Double -> FDL Double -> FDL Double
+(+)          = apply2 Add
+
+(/)          :: FDL Double -> FDL Double -> FDL Double
+(/)          = apply2 Divide
+
+(*)          :: FDL Double -> FDL Double -> FDL Double
+(*)          = apply2 Mult
+
+(-)          :: FDL Double -> FDL Double -> FDL Double
+(-)          = apply2 Sub
+
+max          :: FDL Double -> FDL Double -> FDL Double
+max          = apply2 Max
+
+infixl 6 +
 infixl 6 -
+infixl 7 *
 infixl 7 /
-
-instance Numeric (FDL Double) where
-    fromInteger  = prim . Const . P.fromInteger
-    fromRational = prim . Const . P.fromRational
-    negate       = apply1 Negate
-    (/)          = apply2 Divide
-    (-)          = apply2 Sub
-    max          = apply2 Max
-
-instance Numeric Double where
-    fromInteger  = P.fromInteger
-    fromRational = P.fromRational
-    negate       = P.negate
-    (/)          = (P./)
-    (-)          = (P.-)
-    max          = (P.max)
 
 prim :: Prim a -> FDL a
 prim = return . Prim 

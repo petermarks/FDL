@@ -108,12 +108,18 @@ comp (L.Const v) =
 comp L.Negate =
     return $ \aa ->
       negate <$> aa
-comp L.Divide =
+comp L.Add =
     return $ \aa ba ->
-      (/) <$> aa <*> ba
+      (+) <$> aa <*> ba
 comp L.Sub =
     return $ \aa ba ->
       (-) <$> aa <*> ba
+comp L.Mult =
+    return $ \aa ba ->
+      (*) <$> aa <*> ba
+comp L.Divide =
+    return $ \aa ba ->
+      (/) <$> aa <*> ba
 comp L.Max =
     return $ \aa ba ->
       max <$> aa <*> ba
