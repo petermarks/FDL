@@ -54,10 +54,6 @@ By setting an attribute as a time varying value, we get pictures that change ove
 
     main = draw $ speed (1/5) (scale pulse (color red circle +> star))
 
-or
-
-    main = draw $ scale (speed (1/5) pulse) (color red circle +> star)
-
 For more examples see the examples folder.
 
 ## Running the examples
@@ -68,17 +64,81 @@ To install the package, switch to the root directory of the package and run
 
 To run an example use the ghc command:
 
-    ghc -fglasgow-exts -O2 -o draw --make examples/xxx.hs
+    ghc -fglasgow-exts -O2 -o xxx --make examples/xxx.hs
 
 where xxx.hs is whichever example you want to run. To run it just type:
 
-    draw
+    xxx
 
 ## Status
 
-So the vision is all very nice, but it isn't there yet. So far, it can draw circles and stars in any color and do some basic transformations. It can also set a numeric attribute as the current run time. I know how I'm going to do all the stuff above, so hopefully it'll come quite quickly.
+All the examples above should work now. The language supports the following primitives:
 
-The mechanism to do repetitions is a bit of a hack as it was done before I added lambdas and there is currently no optimization.
+### Shapes
+
+- circle - A circle of unit radius (fills the window)
+
+- star - A 5 pointed star of unit radius
+
+- square - A 2 x 2 square (fills the window)
+
+### Color
+
+- color Color Picture - draws the given picture in the given color
+
+- red, green, blue, yellow, cyan, magenta, white, black, pink, purple - colors
+
+- rgb Red Green Blue - produces a color from the given proportions of red green and blue as numbers from 0 to 1
+
+- rgba Red Green Blue Alpha - as rgb, but also takes an alpha value from 0 (transparent) to 1 (solid)
+
+### Transformation
+
+- scale Size Picture - draws the given picture scaled by the given size - a positive number where 1 is original size or a pair of numbers
+
+- move Position Picture - draws the given picture at the given position - a pair of coordinates where (-1,-1) is the bottom left and (1,1) is the top right
+
+- rotate Amount Picture - draws the given picture rotated by the given amount - 1 is a full rotation
+
+### Composition
+
+- Picture +> Picture - draws the first picture then the second
+
+### Numbers
+
+- Literal - numbers can be positive or negative (negative numbers may need to be put in brackets)
+
+- Number + Number - the sum of the two numbers
+
+- Number - Number - the second number subtracted from the first
+
+- Number * Number - the product of the two numbers
+
+- Number / Number - the first number divided by the second
+
+### Time
+
+- time - the number of seconds since the program started
+
+- pulse - a value that moves smoothly between 0 and 1 - a sine wave of time with period of 1 second
+
+- speed Number Picture - draws the given picture with time multiplied be the given number
+
+- delay Number Picture - draws the given picture with time delayed by the given number
+
+### Repetition
+
+- rotations Number Picture - draws the given picture the given number of times, rotated at even amounts
+
+- grid Size Picture - repeats the given picture in a grid of the given size (width, height), scaled to fit in the cells
+
+- with Value Lambda - calls the given lambda with the given value - of no current use, but needed internally
+
+- withSteps Steps Range Lambda - calls the given lambda with each step in the given range and draws the pictures produced
+
+See the examples folder for use of all the above.
+
+The language is likely to change a lot and will probably be reimplemented as an external DSL. I've done no optimization of either the expression tree or the GL actions produced.
 
 ## Learning
 
