@@ -1,196 +1,116 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
-module Graphics.FDL.Lang 
+module Graphics.FDL.Lang.Impl
   ( FDL
+  , Prim(..)
+  , Var(..)
+  , LCExpr(..)
+  , CLExpr(..)
   , Picture
   , Color
-  , circle
-  , star
-  , square
-  , color
-  , rgb
-  , rgba
-  , red
-  , green
-  , blue
-  , yellow
-  , cyan
-  , magenta
-  , white
-  , black
-  , pink
-  , purple
-  , scale
-  , move
-  , rotate
-  , time
-  , pulse
-  , speed
-  , delay
-  , (+>)
-  , with
-  , withSteps
-  , grid
-  , rotations
-  , fromInteger
-  , fromRational
-  , negate
-  , (+)
-  , (-)
-  , (*)
-  , (/)
-  , ($)
+  , Ix(..)
+  , (:=:)(..)
+  , IxC(..)
+  , toCL
   ) where
 
-import Prelude (Bool, Maybe(..), Int, Integer, Rational, Double, Eq, (.), ($), map, id, uncurry)
-import qualified Prelude as P
-import Data.Monoid
-import Control.Applicative hiding (Const)
 import Control.Monad.State
 
-import Graphics.FDL.Lang.Impl
+data Picture
 
-circle :: FDL Picture
-circle = prim Circle
+data Color
 
-star :: FDL Picture
-star = prim Star
+data Ix :: * -> * where
+    Picture_ :: Ix Picture
+    Color_   :: Ix Color
+    Double_  :: Ix Double
+    Pair_    :: Ix a -> Ix b -> Ix (a, b)
+    Func_    :: Ix a -> Ix b -> Ix (a -> b)
 
-square :: FDL Picture
-square = prim Square
+class    IxC t       where ix :: Ix t
+instance IxC Picture where ix = Picture_
+instance IxC Color   where ix = Color_
+instance IxC Double  where ix = Double_
+instance (IxC a, IxC b) => IxC (a,   b) where ix = Pair_ ix ix
+instance (IxC a, IxC b) => IxC (a -> b) where ix = Func_ ix ix
 
-color :: FDL Color -> FDL Picture -> FDL Picture
-color = apply2 Color
+data (:=:) :: * -> * -> * where
+    TEq :: a :=: a
 
-rgb :: FDL Double -> FDL Double -> FDL Double -> FDL Color
-rgb r g b = apply4 RGBA r g b 1
+(.=.) :: Ix a -> Ix b -> Maybe (a :=: b)
+Picture_    .=. Picture_    = Just TEq
+Color_      .=. Color_      = Just TEq
+Double_     .=. Double_     = Just TEq
+(Pair_ a b) .=. (Pair_ c d) = 
+    case (a .=. c, b .=. d) of
+      (Just TEq, Just TEq) -> Just TEq
+      _                    -> Nothing
+(Func_ a b) .=. (Func_ c d) = 
+    case (a .=. c, b .=. d) of
+      (Just TEq, Just TEq) -> Just TEq
+      _                    -> Nothing
+_          .=. _            = Nothing     
 
-rgba :: FDL Double -> FDL Double -> FDL Double -> FDL Double -> FDL Color
-rgba = apply4 RGBA
+data Prim :: * -> * where
+    NOP    :: Prim Picture
+    Circle :: Prim Picture
+    Star   :: Prim Picture
+    Square :: Prim Picture
+    Color  :: Prim (Color -> Picture -> Picture)
+    RGBA   :: Prim (Double -> Double -> Double -> Double -> Color)
+    Scale  :: Prim ((Double, Double) -> Picture -> Picture)
+    Move   :: Prim ((Double, Double) -> Picture -> Picture)
+    Rotate :: Prim (Double -> Picture -> Picture)
+    Const  :: Double -> Prim Double
+    Negate :: Prim (Double -> Double)
+    Add    :: Prim (Double -> Double -> Double)
+    Sub    :: Prim (Double -> Double -> Double)
+    Mult   :: Prim (Double -> Double -> Double)
+    Divide :: Prim (Double -> Double -> Double)
+    Max    :: Prim (Double -> Double -> Double)
+    Time   :: Prim Double
+    Pulse  :: Prim Double
+    Speed  :: Prim (Double -> Picture -> Picture)
+    Delay  :: Prim (Double -> Picture -> Picture)
+    Pair   :: Prim (a -> b -> (a, b))
+    Dup    :: Prim (a -> (a, a))
+    Steps  :: Prim (Double -> (Double, Double) -> (Double -> Picture) -> Picture)
+    Comp   :: Prim (Picture -> Picture -> Picture)
 
-red     = rgb 1 0 0
-green   = rgb 0 1 0
-blue    = rgb 0 0 1
-yellow  = rgb 1 1 0
-cyan    = rgb 0 1 1
-magenta = rgb 1 0 1
-white   = rgb 1 1 1
-black   = rgb 0 0 0
-pink    = rgb 1 0.75 0.75
-purple  = rgb 0.5 0 1
+data Var a = Var (Ix a) Int
 
-scale :: (Convertible a (FDL (Double, Double))) => a -> FDL Picture -> FDL Picture
-scale = apply2 Scale . convert
+data LCExpr :: * -> * where
+    Prim   :: Prim a -> LCExpr a
+    Apply  :: LCExpr (a -> b) -> LCExpr a -> LCExpr b
+    Lambda :: Var a -> LCExpr b -> LCExpr (a -> b)
+    VarRef :: Var a -> LCExpr a
 
-move :: (Convertible a (FDL (Double, Double))) => a -> FDL Picture -> FDL Picture
-move = apply2 Move . convert
+type FDL a = State Int (LCExpr a)
 
-rotate :: FDL Double -> FDL Picture -> FDL Picture
-rotate = apply2 Rotate
+data CLExpr :: * -> * where
+    P :: Prim a -> CLExpr a
+    V :: Var  a -> CLExpr a
+    S :: CLExpr ((a -> b -> c) -> (a -> b) -> a -> c)
+    K :: CLExpr (a -> b -> a)
+    I :: CLExpr (a -> a)
+    A :: CLExpr (a -> b) -> CLExpr a -> CLExpr b
 
-time :: FDL Double
-time = prim Time
+toCL :: FDL a -> CLExpr a
+toCL = lcToCL . flip evalState 0
 
-pulse :: FDL Double
-pulse = prim Pulse
+lcToCL :: LCExpr a -> CLExpr a
+lcToCL (Prim   a)   = P a
+lcToCL (VarRef v)   = V v
+lcToCL (Apply  f a) = A (lcToCL f) (lcToCL a)
+lcToCL (Lambda v l) = lambdaToCL v (lcToCL l)
 
-speed :: FDL Double -> FDL Picture -> FDL Picture
-speed = apply2 Speed
+lambdaToCL :: Var a -> CLExpr b -> CLExpr (a -> b)
+lambdaToCL v l | not $ l `hasVar` v = A K l
+lambdaToCL (Var vix _) (V (Var vrix _))  = case vix .=. vrix of
+    Nothing  -> error "Variable should have been eliminated"
+    Just TEq -> I     -- var must match otherwise it will have been eliminated
+lambdaToCL i (A f v) = A (A S (lambdaToCL i f)) (lambdaToCL i v)
 
-delay :: FDL Double -> FDL Picture -> FDL Picture
-delay = apply2 Delay
+hasVar :: CLExpr a -> Var b -> Bool
+hasVar (V (Var _ vri)) (Var _ vi) = vi == vri
+hasVar (A f a)         v          = f `hasVar` v || a `hasVar` v
+hasVar _               _          = False
 
-instance Monoid (FDL Picture) where
-    mempty  = prim NOP
-    mappend = apply2 Comp
-
-(+>) :: FDL Picture -> FDL Picture -> FDL Picture
-(+>) = mappend
-
-infixr 5 +>
-
-with :: (IxC a) => FDL a -> (FDL a -> FDL b) -> FDL b
-with b f = Apply <$> lambda f <*> b 
-
-withSteps :: FDL Double -> (FDL Double, FDL Double) -> (FDL Double -> FDL Picture) -> FDL Picture
-withSteps steps (from, to) f = apply3 Steps steps (apply2 Pair from to) (lambda f)
-
-grid :: (FDL Double, FDL Double) -> FDL Picture -> FDL Picture
-grid (w, h) f = 
-    scale (1/max w h) $ 
-      withSteps h (1 - h, h - 1) $ \y -> 
-        withSteps w (1 - w, w - 1) $ \x -> 
-          move (x,y) f
-
-rotations :: FDL Double -> FDL Picture -> FDL Picture
-rotations n f = 
-    withSteps n (0, 1 - 1 / n) $ \r -> 
-      rotate r f
-
-lambda :: (IxC a) => (FDL a -> FDL b) -> FDL (a -> b)
-lambda f = do
-    i <- get
-    put (P.succ i)
-    let v = Var ix i
-    l <- f . return . VarRef $ v
-    return $ Lambda v l
-
-fromInteger  :: Integer  -> FDL Double
-fromInteger  = prim . Const . P.fromInteger
-
-fromRational :: Rational -> FDL Double
-fromRational = prim . Const . P.fromRational
-
-negate       :: FDL Double -> FDL Double
-negate       = apply1 Negate
-
-(+)          :: FDL Double -> FDL Double -> FDL Double
-(+)          = apply2 Add
-
-(/)          :: FDL Double -> FDL Double -> FDL Double
-(/)          = apply2 Divide
-
-(*)          :: FDL Double -> FDL Double -> FDL Double
-(*)          = apply2 Mult
-
-(-)          :: FDL Double -> FDL Double -> FDL Double
-(-)          = apply2 Sub
-
-max          :: FDL Double -> FDL Double -> FDL Double
-max          = apply2 Max
-
-infixl 6 +
-infixl 6 -
-infixl 7 *
-infixl 7 /
-
-prim :: Prim a -> FDL a
-prim = return . Prim 
-
-apply1 :: Prim (a -> b) -> FDL a -> FDL b
-apply1 f a = Apply (Prim f) <$> a
-
-apply2 :: Prim (a -> b -> c) -> FDL a -> FDL b -> FDL c
-apply2 f a b = Apply <$> apply1 f a <*> b
-
-apply3 :: Prim (a -> b -> c -> d) -> FDL a -> FDL b -> FDL c -> FDL d
-apply3 f a b c = Apply <$> apply2 f a b <*> c
-
-apply4 :: Prim (a -> b -> c -> d -> e) -> FDL a -> FDL b -> FDL c -> FDL d -> FDL e
-apply4 f a b c d = Apply <$> apply3 f a b c <*> d
-
-class Convertible a b where
-    convert :: a -> b
-
-instance Convertible a a where
-    convert = id
-
-instance Convertible (FDL a, FDL b) (FDL (a, b)) where
-    convert = uncurry $ apply2 Pair
-
-instance Convertible (FDL a) (FDL (a, a)) where
-    convert = apply1 Dup
-
-instance Applicative (State s) where
-    pure  = return
-    (<*>) = ap
