@@ -1,6 +1,6 @@
 name:               fdl
 version:            0.1
-synopsis:           Functional Drawing Library
+synopsis:           Functional Drawing Language
 description:        FDL (pronounced "Fuddle") stands for Functional Drawing Language. It is a language
   for describing animated pictures. It is a Haskell embedded DSL and renders using OpenGL. It is an example
   of Functional Temporal Programming (usually called Functional Reactive Programming or FRP) 
@@ -15,12 +15,16 @@ build-type:         Simple
 
 flag split-base
 
-library
+executable draw
+  main-is:          Draw.hs
   hs-source-dirs:   src
-  build-depends:    base ==4.*, mtl ==1.1.*, OpenGL ==2.2.*, GLUT ==2.1.*, time ==1.1.*
+  build-depends:    base ==4.*, mtl ==1.1.*, containers ==0.3.*,
+                    OpenGL ==2.2.*, GLUT ==2.1.*, time ==1.1.*, uu-parsinglib ==2.5.*
 
-  exposed-modules:  Graphics.FDL.GL
-                    Graphics.FDL.Lang
-                    Graphics.FDL.Lang.Impl
+  other-modules:    Graphics.FDL.Lang
+                    Graphics.FDL.Parser
+                    Graphics.FDL.Typer
+                    Graphics.FDL.Prelude
                     Graphics.FDL.Backend.GL
-  ghc-options:      -fglasgow-exts -O2
+  ghc-options:      -fglasgow-exts -O2 -Wall -fno-warn-unused-do-bind -fno-warn-name-shadowing -Werror
+

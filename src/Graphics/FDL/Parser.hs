@@ -1,5 +1,6 @@
 module Graphics.FDL.Parser
     ( Pos(..)
+    , Error(..)
     , Program(..)
     , ProgElem(..)
     , Expression(..)
@@ -10,7 +11,7 @@ module Graphics.FDL.Parser
 
 import Data.Char
 import Data.Traversable
-import Text.ParserCombinators.UU hiding (Parser(..))
+import Text.ParserCombinators.UU hiding (Parser)
 
 ----------------------------------------------------------------------
 -- Parser state and instances
@@ -23,6 +24,7 @@ data Pos = Pos
     }
     deriving (Show, Eq)
 
+startPos :: Pos
 startPos = Pos 0 1 1
 
 instance IsLocationUpdatedBy Pos Char where
@@ -78,6 +80,7 @@ pInline :: Parser (ProgElem Expression)
 pInline = foldr pChainl_ng pParticle (map pOperator operators)
 
 -- Lowest precedence to highest
+operators :: [[String]]
 operators =
     [ ["+", "-"]
     , ["*", "/"]
@@ -110,9 +113,6 @@ pPair = apply2PE Pair <$$> (pWS *> pSym ',' *> pWS *> pInline)
 
 pWS :: Parser String
 pWS = pList (pAnySym " \t")
-
-pWS1 :: Parser String
-pWS1 = pList1 (pAnySym " \t")
 
 pNewline :: Parser ()
 pNewline = () <$ pList1_ng (pWS *> pSym '\n')
@@ -147,5 +147,4 @@ parseProg input = parse ((,) <$> pProgram <*> pEnd) (Str input [] startPos True)
 
 parseWith :: Parser a -> String -> (a, [Error Pos])
 parseWith p input = parse ((,) <$> p <*> pEnd) (Str input [] startPos True)
-
 

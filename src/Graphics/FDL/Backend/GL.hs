@@ -9,7 +9,7 @@ import Control.Monad.Reader
 import Control.Applicative
 import Graphics.UI.GLUT
 
-import qualified Graphics.FDL.Lang.Impl as L
+import qualified Graphics.FDL.Lang as L
 
 type family Output a :: *
 
@@ -26,16 +26,16 @@ data CompileContext = CompileContext
 
 type Compiler a = Reader CompileContext a
 
-compile :: L.FDL L.Picture -> IO (IO ())
+compile :: L.LCExpr L.Picture -> IO (IO ())
 compile pic = do
     start   <- getCurrentTime
     timeRef <- newIORef 0
     return $ runReader (compileProg pic) (CompileContext start timeRef)
 
-compileProg :: L.FDL L.Picture -> Compiler (IO ())
+compileProg :: L.LCExpr L.Picture -> Compiler (IO ())
 compileProg pic = do
     initAction <- initFrame
-    picAction  <- compExpr . L.toCL $ pic
+    picAction  <- compExpr . L.lcToCL $ pic
     return $ initAction >> picAction
 
 initFrame :: Compiler (IO ())
