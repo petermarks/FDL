@@ -45,7 +45,10 @@ type Parser a = P (Str Char Pos) a
 data Program = Program (ProgElem Expression)
     deriving (Show)
 
-data ProgElem a = PE Pos a
+data ProgElem a = PE
+    { pePos  :: Pos
+    , peElem :: a
+    }
 
 instance (Show a) => Show (ProgElem a) where
     showsPrec d (PE _ a) = showsPrec d a
