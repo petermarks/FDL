@@ -89,6 +89,11 @@ comp L.Color =
 comp L.RGBA =
     return $ \ra ga ba aa ->
       Color4 <$> ra <*> ga <*> ba <*> aa
+comp L.Size =
+    return $ \sa pica -> preservingMatrix $ do
+      s <- realToFrac <$> sa :: IO GLdouble
+      scale s s 1
+      pica
 comp L.Scale =
     return $ \(wa, ha) pica -> preservingMatrix $ do
       w <- realToFrac <$> wa :: IO GLdouble

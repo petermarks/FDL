@@ -21,6 +21,14 @@ prelude = M.fromList
     , ("black",   expr $ rgb 0 0 0)
     , ("pink",    expr $ rgb 1 0.75 0.75)
     , ("purple",  expr $ rgb 0.5 0 1)
+    , ("size",    expr $ Prim Size)
+    , ("rotate",  expr $ Prim Rotate)
+    , ("time",    expr $ Prim Time)
+    , ("+",       expr $ Prim Add)
+    , ("-",       expr $ Prim Sub)
+    , ("*",       expr $ Prim Mult)
+    , ("/",       expr $ Prim Divide)
+    , (";",       expr $ Prim Comp)
     ]
 
 rgb :: Double -> Double -> Double -> LCExpr Color

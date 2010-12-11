@@ -68,20 +68,37 @@ tExpression (PE pos (Reference ref)) =
     gets (M.lookup ref) >>= maybe (err ("Unknown name: " ++ ref) pos) return 
 tExpression (PE _ (Number num)) = return . expr . Prim . Const $ num
 tExpression (PE _ (Application ef ea)) = do
-    (,) <$> tExpression ef <*> tExpression ea >>= apply
+    tExpression ef >>= apply
     where
-      apply :: Typer (Expr, Expr) Expr
-      apply (Expr (Func_ twitArg twitResult) f, Expr twitA a) = case twitArg .=. twitA of
-        Just TEq -> return . Expr twitResult $ Apply f a
-        Nothing  -> err ("Incorrect type: expected " ++ showTWit twitArg ++ ", but found " ++ showTWit twitA) (pePos ea)
-      apply (Expr twitF _, _) =
+      apply :: Typer Expr Expr
+      apply (Expr (Func_ twitArg twitResult) f) = 
+        Expr twitResult . Apply f <$> tExpressionAs twitArg ea
+      apply (Expr twitF _) =
         err ("Function expected, but found " ++ showTWit twitF) (pePos ef)
+tExpression (PE _ (Operation op ea eb)) = do
+    lookup op >>= apply
+    where
+      lookup :: Typer (ProgElem String) Expr
+      lookup (PE pos op) = gets (M.lookup op) >>= maybe (err ("Unknown operator: " ++ op) pos) return
+      apply :: Typer Expr Expr
+      apply (Expr (Func_ twitArgA (Func_ twitArgB twitResult)) f) =
+        (\a b -> Expr twitResult $ Apply (Apply f a) b) <$> tExpressionAs twitArgA ea <*> tExpressionAs twitArgB eb
+      apply (Expr twitF _) =
+        err ("Operator expected, but found " ++ showTWit twitF) (pePos op)
 tExpression (PE pos _) = err "Don't know how to type expression" pos
 
 --      Just Variable -> do
 --        let var = VarRef $ Var twit ref
 --        modify (insert ref (Expr twit var))
 --        return $ TyperSuccess var
+
+tExpressionAs :: forall a . TWit a -> Typer (ProgElem Expression) (LCExpr a)
+tExpressionAs twitR e = tExpression e >>= as
+    where
+      as :: Typer Expr (LCExpr a)
+      as (Expr twitV v) = case twitV .=. twitR of
+        Just TEq -> return v
+        Nothing  -> err ("Incorrect type: expected " ++ showTWit twitR ++ ", but found " ++ showTWit twitV) (pePos e)
 
 
 ----------------------------------------------------------------------

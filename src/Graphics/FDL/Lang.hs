@@ -60,6 +60,7 @@ data Prim :: * -> * where
     Square :: Prim Picture
     Color  :: Prim (Color -> Picture -> Picture)
     RGBA   :: Prim (Double -> Double -> Double -> Double -> Color)
+    Size   :: Prim (Double -> Picture -> Picture)
     Scale  :: Prim ((Double, Double) -> Picture -> Picture)
     Move   :: Prim ((Double, Double) -> Picture -> Picture)
     Rotate :: Prim (Double -> Picture -> Picture)
