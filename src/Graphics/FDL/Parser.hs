@@ -56,7 +56,7 @@ instance (Show a) => Show (ProgElem a) where
 data Expression
     = Reference   String
     | Number      Double
-    | Pair        (ProgElem Expression) (ProgElem Expression)
+    | Pairing     (ProgElem Expression) (ProgElem Expression)
     | Application (ProgElem Expression) (ProgElem Expression)
     | Operation   (ProgElem String) (ProgElem Expression) (ProgElem Expression)
     -- | Lambda      String Expression
@@ -109,10 +109,11 @@ pNumber = pPE $ Number . read <$> (((:) <$> pSign) `opt_ng` id <*> pDigits <??> 
       pDecimal = (:) <$> pSym '.' <*> pDigits
 
 pBracketed :: Parser (ProgElem Expression)
-pBracketed = pSym '(' *> pWS *> pInline `optPostfix_ng` pPair <* pWS <* pSym ')'
+pBracketed =
+  pRepos <*> (pSym '(' *> pWS *> pInline `optPostfix_ng` pPair <* pWS <* pSym ')')
 
 pPair :: Parser (ProgElem Expression -> ProgElem Expression)
-pPair = apply2PE Pair <$$> (pWS *> pSym ',' *> pWS *> pInline)
+pPair = apply2PE Pairing <$$> (pWS *> pSym ',' *> pWS *> pInline)
 
 pWS :: Parser String
 pWS = pList (pAnySym " \t")
@@ -127,6 +128,9 @@ pIndent indent = do
 
 pPE :: Parser a -> Parser (ProgElem a)
 pPE p = PE <$> pPos <*> p
+
+pRepos :: Parser (ProgElem a -> ProgElem a)
+pRepos = (\pos (PE _ x) -> PE pos x) <$> pPos
 
 apply2PE :: (ProgElem a -> ProgElem b -> c) -> ProgElem a -> ProgElem b -> ProgElem c
 apply2PE f a@(PE pos _) b = PE pos $ f a b

@@ -22,6 +22,7 @@ prelude = M.fromList
     , ("pink",    expr $ rgb 1 0.75 0.75)
     , ("purple",  expr $ rgb 0.5 0 1)
     , ("size",    expr $ Prim Size)
+    , ("scale",   expr $ Prim Scale)
     , ("rotate",  expr $ Prim Rotate)
     , ("time",    expr $ Prim Time)
     , ("+",       expr $ Prim Add)

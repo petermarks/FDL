@@ -67,6 +67,10 @@ tExpression :: Typer (ProgElem Expression) Expr
 tExpression (PE pos (Reference ref)) =
     gets (M.lookup ref) >>= maybe (err ("Unknown name: " ++ ref) pos) return 
 tExpression (PE _ (Number num)) = return . expr . Prim . Const $ num
+tExpression (PE _ (Pairing ea eb)) = do
+    pair <$> tExpression ea <*> tExpression eb
+    where
+      pair (Expr twitA a) (Expr twitB b) = Expr (Pair_ twitA twitB) (Apply (Apply (Prim Pair) a) b)
 tExpression (PE _ (Application ef ea)) = do
     tExpression ef >>= apply
     where
@@ -85,7 +89,6 @@ tExpression (PE _ (Operation op ea eb)) = do
         (\a b -> Expr twitResult $ Apply (Apply f a) b) <$> tExpressionAs twitArgA ea <*> tExpressionAs twitArgB eb
       apply (Expr twitF _) =
         err ("Operator expected, but found " ++ showTWit twitF) (pePos op)
-tExpression (PE pos _) = err "Don't know how to type expression" pos
 
 --      Just Variable -> do
 --        let var = VarRef $ Var twit ref
