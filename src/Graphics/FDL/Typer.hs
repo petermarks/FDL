@@ -55,13 +55,9 @@ err msg pos = StateT $ \_ -> TyperErrors [TyperError msg pos]
 ----------------------------------------------------------------------
 
 tProgram :: Typer Program (LCExpr Picture)
-tProgram (Program e) =
-    tExpression e >>= unwrap
-    where
-      unwrap :: Typer Expr (LCExpr Picture)
-      unwrap (Expr twitExpr expr) = case twitExpr .=. Picture_ of
-        Nothing  -> err ("Incorrect type: expected Picture, but found " ++ showTWit twitExpr) (pePos e)
-        Just TEq -> return expr
+tProgram (Program e ds) = do
+    tDefinitions  ds
+    tExpressionAs Picture_ e
 
 tExpression :: Typer (ProgElem Expression) Expr
 tExpression (PE pos (Reference ref)) =
@@ -102,6 +98,20 @@ tExpressionAs twitR e = tExpression e >>= as
       as (Expr twitV v) = case twitV .=. twitR of
         Just TEq -> return v
         Nothing  -> err ("Incorrect type: expected " ++ showTWit twitR ++ ", but found " ++ showTWit twitV) (pePos e)
+
+tDefinitions :: Typer [ProgElem Definition] ()
+-- Process definitions in reverse as a definition may reference any identifier defined after it.
+-- TODO It would be good to report errors from all definitions, but this would require two parses 
+--      or some dependency ordering.
+tDefinitions = mapM_ tDefinition . reverse
+
+tDefinition :: Typer (ProgElem Definition) ()
+tDefinition (PE pos (Definition identifier e)) = do
+    exp    <- tExpression e
+    exists <- gets $ M.member identifier
+    if exists
+      then err (identifier ++ " is already defined") pos
+      else modify $ M.insert identifier exp
 
 
 ----------------------------------------------------------------------

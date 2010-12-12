@@ -4,7 +4,7 @@ module Graphics.FDL.Parser
     , Program(..)
     , ProgElem(..)
     , Expression(..)
---    , Definition(..)
+    , Definition(..)
     , parseProg
     , parseWith
     ) where
@@ -42,7 +42,7 @@ type Parser a = P (Str Char Pos) a
 -- Untyped AST
 ----------------------------------------------------------------------
 
-data Program = Program (ProgElem Expression)
+data Program = Program (ProgElem Expression) [ProgElem Definition]
     deriving (Show)
 
 data ProgElem a = PE
@@ -62,13 +62,16 @@ data Expression
     -- | Lambda      String Expression
     deriving (Show)
 
+data Definition = Definition String (ProgElem Expression)
+    deriving (Show)
+
 
 ----------------------------------------------------------------------
 -- Parsers
 ----------------------------------------------------------------------
 
 pProgram :: Parser Program
-pProgram = Program <$> (pList (pAnySym " \t\n") *> pLines 0 <* pList (pAnySym " \t\n"))
+pProgram = Program <$> (pList (pAnySym " \t\n") *> pLines 0) <*> pDefinitions <* pList (pAnySym " \t\n")
 
 pLines :: Int -> Parser (ProgElem Expression)
 pLines indent = pChainr_ng (apply2PE . Operation <$> pPE (";" <$ pNewline <* pIndent indent)) (pLine indent)
@@ -99,7 +102,10 @@ pAtomic :: Parser (ProgElem Expression)
 pAtomic = pReference <<|> pNumber <<|> pBracketed
 
 pReference :: Parser (ProgElem Expression)
-pReference = pPE $ Reference <$> ((:) <$> pSym ('a','z') <*> pMunch isAlphaNum)
+pReference = pPE $ Reference <$> pIdentifier
+
+pIdentifier :: Parser String
+pIdentifier = (:) <$> pSym ('a','z') <*> pMunch isAlphaNum
 
 pNumber :: Parser (ProgElem Expression)
 pNumber = pPE $ Number . read <$> (((:) <$> pSign) `opt_ng` id <*> pDigits <??> ((++) <$$> pDecimal))
@@ -114,6 +120,12 @@ pBracketed =
 
 pPair :: Parser (ProgElem Expression -> ProgElem Expression)
 pPair = apply2PE Pairing <$$> (pWS *> pSym ',' *> pWS *> pInline)
+
+pDefinitions :: Parser [ProgElem Definition]
+pDefinitions = pList_ng (pNewline *> pDefinition)
+
+pDefinition :: Parser (ProgElem Definition)
+pDefinition = pPE $ Definition <$> (pIdentifier <* pWS <* pSym '=') <*> pIndented 0
 
 pWS :: Parser String
 pWS = pList (pAnySym " \t")
