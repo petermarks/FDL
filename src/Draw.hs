@@ -12,15 +12,18 @@ import Graphics.FDL.Backend.GL
 main :: IO ()
 main = do
     args <- getArgs
-    when (length args /= 1) $ putStrLn "Usage: draw picture.fdl" >> exitFailure
-    source <- readFile (head args)
+    (checkMode, sourceFile) <- case args of
+      ["--check", sf] -> return (True,  sf)
+      [sf]            -> return (False, sf)
+      _               -> putStrLn "Usage: draw [--check] picture.fdl" >> exitFailure
+    source <- readFile sourceFile
     let 
       (ast, parserErrors) = parseProg source
       typerResult         = typeProg  ast
     when (not $ null parserErrors) $ showParserErrors source parserErrors >> exitFailure
     case typerResult of
       TyperErrors es -> showTyperErrors source es >> exitFailure
-      TyperSuccess p -> compile p >>= run
+      TyperSuccess p -> if checkMode then putStrLn "All good." else compile p >>= run
 
 showParserErrors :: String -> [Error Pos] -> IO ()
 showParserErrors src es = mapM_ (showParserError src) es
