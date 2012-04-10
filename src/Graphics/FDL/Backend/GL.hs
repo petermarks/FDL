@@ -152,9 +152,6 @@ comp L.Delay = do
 comp L.Pair =
     return $ \aa ba ->
       (aa, ba)
-comp L.Dup =
-    return $ \aa ->
-      (aa, aa)
 comp L.Steps =
     return $ \stepsa (froma, toa) f -> do
       steps <- stepsa

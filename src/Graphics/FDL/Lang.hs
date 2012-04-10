@@ -75,8 +75,7 @@ data Prim :: * -> * where
     Pulse  :: Prim Double
     Speed  :: Prim (Double -> Picture -> Picture)
     Delay  :: Prim (Double -> Picture -> Picture)
-    Pair   :: Prim (a -> b -> (a, b))
-    Dup    :: Prim (a -> (a, a))
+    Pair   :: Prim (Double -> Double -> (Double, Double))
     Steps  :: Prim (Double -> (Double, Double) -> (Double -> Picture) -> Picture)
     Comp   :: Prim (Picture -> Picture -> Picture)
 

@@ -64,9 +64,9 @@ tExpression (PE pos (Reference ref)) =
     gets (M.lookup ref) >>= maybe (err ("Unknown name: " ++ ref) pos) return 
 tExpression (PE _ (Number num)) = return . expr . Prim . Const $ num
 tExpression (PE _ (Pairing ea eb)) = do
-    pair <$> tExpression ea <*> tExpression eb
+    pair <$> tExpressionAs Double_ ea <*> tExpressionAs Double_ eb
     where
-      pair (Expr twitA a) (Expr twitB b) = Expr (Pair_ twitA twitB) (Apply (Apply (Prim Pair) a) b)
+      pair a b = Expr (Pair_ Double_ Double_) (Apply (Apply (Prim Pair) a) b)
 tExpression (PE _ (Application ef ea)) = do
     tExpression ef >>= apply
     where
