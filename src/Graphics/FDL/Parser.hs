@@ -59,10 +59,9 @@ data Expression
     | Pairing     (ProgElem Expression) (ProgElem Expression)
     | Application (ProgElem Expression) (ProgElem Expression)
     | Operation   (ProgElem String) (ProgElem Expression) (ProgElem Expression)
-    -- | Lambda      String Expression
     deriving (Show)
 
-data Definition = Definition String (ProgElem Expression)
+data Definition = Definition String [ProgElem String] (ProgElem Expression)
     deriving (Show)
 
 
@@ -125,7 +124,10 @@ pDefinitions :: Parser [ProgElem Definition]
 pDefinitions = pList_ng (pNewline *> pDefinition)
 
 pDefinition :: Parser (ProgElem Definition)
-pDefinition = pPE $ Definition <$> (pIdentifier <* pWS <* pSym '=') <*> pIndented 0
+pDefinition = pPE $ Definition <$> (pIdentifier <* pWS) <*> pArgs <*> (pSym '=' *> pIndented 0)
+
+pArgs :: Parser [ProgElem String]
+pArgs = pList_ng $ pPE $ pIdentifier <* pWS
 
 pWS :: Parser String
 pWS = pList (pAnySym " \t")

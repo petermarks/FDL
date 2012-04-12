@@ -34,7 +34,9 @@ instance Monad TyperResult where
     (TyperErrors es) >>= _ = TyperErrors es
     (TyperSuccess v) >>= f = f v
 
-type Typer a b = a -> StateT Environment TyperResult b
+type TyperM = StateT Environment TyperResult
+
+type Typer a b = a -> TyperM b
 
 instance Applicative (StateT Environment TyperResult) where
     pure = return
@@ -60,9 +62,13 @@ tProgram (Program e ds) = do
     tExpressionAs Picture_ e
 
 tExpression :: Typer (ProgElem Expression) Expr
-tExpression (PE pos (Reference ref)) =
-    gets (M.lookup ref) >>= maybe (err ("Unknown name: " ++ ref) pos) return 
-tExpression (PE _ (Number num)) = return . expr . Prim . Const $ num
+tExpression (PE pos (Reference ref)) = do
+    meexpr <- gets (M.lookup ref)
+    case meexpr of
+      Nothing          -> err ("Unknown name: " ++ ref) pos
+      Just Nothing     -> err ("Cannot determine type of " ++ ref ++ " from its context") pos
+      Just (Just expr) -> return expr
+tExpression (PE _ (Number num)) = expr . Prim . Const $ num
 tExpression (PE _ (Pairing ea eb)) = do
     pair <$> tExpressionAs Double_ ea <*> tExpressionAs Double_ eb
     where
@@ -79,25 +85,33 @@ tExpression (PE _ (Operation op ea eb)) = do
     lookup op >>= apply
     where
       lookup :: Typer (ProgElem String) Expr
-      lookup (PE pos op) = gets (M.lookup op) >>= maybe (err ("Unknown operator: " ++ op) pos) return
+      lookup (PE pos op) = do
+        meop <- gets (M.lookup op)
+        case meop of
+          Just (Just expr) -> return expr
+          _                -> error $ "Unknown operator: " ++ op ++ " at " ++ show pos
       apply :: Typer Expr Expr
       apply (Expr (Func_ twitArgA (Func_ twitArgB twitResult)) f) =
         (\a b -> Expr twitResult $ Apply (Apply f a) b) <$> tExpressionAs twitArgA ea <*> tExpressionAs twitArgB eb
       apply (Expr twitF _) =
         err ("Operator expected, but found " ++ showTWit twitF) (pePos op)
 
---      Just Variable -> do
---        let var = VarRef $ Var twit ref
---        modify (insert ref (Expr twit var))
---        return $ TyperSuccess var
-
 tExpressionAs :: forall a . TWit a -> Typer (ProgElem Expression) (LCExpr a)
-tExpressionAs twitR e = tExpression e >>= as
-    where
-      as :: Typer Expr (LCExpr a)
-      as (Expr twitV v) = case twitV .=. twitR of
-        Just TEq -> return v
-        Nothing  -> err ("Incorrect type: expected " ++ showTWit twitR ++ ", but found " ++ showTWit twitV) (pePos e)
+tExpressionAs twitR (PE pos (Reference ref)) = do
+    meexpr <- gets (M.lookup ref)
+    case meexpr of
+      Nothing          -> err ("Unknown name: " ++ ref) pos
+      Just Nothing     -> do
+        let vr = VarRef $ Var twitR ref
+        modify $ M.insert ref (Just $ Expr twitR vr)
+        return vr
+      Just (Just expr) -> as twitR pos expr
+tExpressionAs twitR e = tExpression e >>= as twitR (pePos e)
+
+as :: TWit a -> Pos -> Typer Expr (LCExpr a)
+as twitR pos (Expr twitV v) = case twitV .=. twitR of
+  Just TEq -> return v
+  Nothing  -> err ("Incorrect type: expected " ++ showTWit twitR ++ ", but found " ++ showTWit twitV) pos
 
 tDefinitions :: Typer [ProgElem Definition] ()
 -- Process definitions in reverse as a definition may reference any identifier defined after it.
@@ -106,12 +120,23 @@ tDefinitions :: Typer [ProgElem Definition] ()
 tDefinitions = mapM_ tDefinition . reverse
 
 tDefinition :: Typer (ProgElem Definition) ()
-tDefinition (PE pos (Definition identifier e)) = do
-    exp    <- tExpression e
+tDefinition (PE pos (Definition identifier args e)) = do
+    exp    <- foldr tLambda (tExpression e) args
     exists <- gets $ M.member identifier
     if exists
       then err (identifier ++ " is already defined") pos
-      else modify $ M.insert identifier exp
+      else modify $ M.insert identifier (Just exp)
+
+tLambda :: ProgElem String -> Typer (TyperM Expr) Expr
+tLambda (PE pos arg) e = do
+    modify $ M.insert arg Nothing
+    Expr twitBody body <- e
+    argExp  <- gets (M.! arg)
+    case argExp of
+      Nothing                          -> err ("Cannot determine type of " ++ arg ++ " as it is not used") pos
+      Just (Expr twitArg (VarRef var)) -> return $ Expr (Func_ twitArg twitBody) (Lambda var body)
+      Just _                           -> error $ arg ++ " should be a VarRef"
+      
 
 
 ----------------------------------------------------------------------

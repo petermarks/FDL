@@ -97,13 +97,11 @@ data CLExpr :: * -> * where
 
 data Expr
   = forall a . Expr (TWit a) (LCExpr a)
-  -- | Variable -- not yet typed
+ 
+expr :: (Monad m, Witnessed a) => LCExpr a -> m Expr
+expr e = return $ Expr twit e
 
-expr :: (Witnessed a) => (LCExpr a) -> Expr
-expr e = Expr twit e
-
-type Environment = M.Map String Expr
--- TODO may need to become stack of maps: [M.Map String Expr]
+type Environment = M.Map String (Maybe Expr)
 
 lcToCL :: LCExpr a -> CLExpr a
 lcToCL (Prim   a)   = P a
