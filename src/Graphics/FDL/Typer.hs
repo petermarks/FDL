@@ -11,6 +11,7 @@ import Data.Traversable
 import Data.List
 import Data.Maybe
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 import Graphics.FDL.Lang
 import Graphics.FDL.Parser
@@ -129,16 +130,16 @@ tDefinitions defs = sortDefs >>= mapM_ tDefinition
         . M.fromList
         . map (getIdentifier &&& findDeps)
         $ defs
-      getIdentifier (PE _ (Definition i _)) = i
-      findDeps (PE _ (Definition _ e)) = findExprDeps e
+      getIdentifier (PE _ (Definition i _ _)) = i
+      findDeps (PE _ (Definition _ as e)) = findExprDeps e S.\\ S.fromList (map peElem as)
       -- TODO use uniplate os some other SYB
-      findExprDeps (PE _ (Reference     s  )) = [s]
-      findExprDeps (PE _ (Number        _  )) = []
-      findExprDeps (PE _ (Pairing       l r)) = findExprDeps l ++ findExprDeps r
-      findExprDeps (PE _ (Application   f v)) = findExprDeps f ++ findExprDeps v
-      findExprDeps (PE _ (Operation   _ l r)) = findExprDeps l ++ findExprDeps r
+      findExprDeps (PE _ (Reference     s  )) = S.singleton s
+      findExprDeps (PE _ (Number        _  )) = S.empty
+      findExprDeps (PE _ (Pairing       l r)) = findExprDeps l `S.union` findExprDeps r
+      findExprDeps (PE _ (Application   f v)) = findExprDeps f `S.union` findExprDeps v
+      findExprDeps (PE _ (Operation   _ l r)) = findExprDeps l `S.union` findExprDeps r
       check = traverse (circErr ||| return)
-      circErr identifiers = err ("Circular definitions: " ++ intercalate ", " identifiers) (pePos . fromJust $ find (\(PE _ (Definition i _)) -> i == head identifiers) defs)
+      circErr identifiers = err ("Circular definitions: " ++ intercalate ", " identifiers) (pePos . fromJust $ find (\(PE _ (Definition i _ _)) -> i == head identifiers) defs)
 
 tDefinition :: Typer (ProgElem Definition) ()
 tDefinition (PE pos (Definition identifier args e)) = do
@@ -172,7 +173,7 @@ typeProg = flip evalStateT prelude . tProgram
 -- Library
 ----------------------------------------------------------------------
 
-topologicalSort :: Ord a => M.Map a [a] -> [Either [a] a]
+topologicalSort :: Ord a => M.Map a (S.Set a) -> [Either [a] a]
 topologicalSort graph 
     | M.null graph              = []
     | (x, _) <- M.findMin graph = process [] x topologicalSort graph
@@ -181,7 +182,7 @@ topologicalSort graph
         | x `elem` stack = 
           Left (x : takeWhile (/= x) stack) : cont graph
         | (Just deps, graph') <- lookupDelete x graph = 
-          foldr (process (x : stack)) ((Right x :) . cont) deps graph'
+          S.fold (process (x : stack)) ((Right x :) . cont) deps graph'
         | otherwise =
           cont graph
 
