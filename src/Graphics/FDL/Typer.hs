@@ -5,7 +5,11 @@ module Graphics.FDL.Typer
     ) where
 
 import Control.Applicative hiding (Const)
+import Control.Arrow
 import Control.Monad.State
+import Data.Traversable
+import Data.List
+import Data.Maybe
 import qualified Data.Map as M
 
 import Graphics.FDL.Lang
@@ -114,10 +118,27 @@ as twitR pos (Expr twitV v) = case twitV .=. twitR of
   Nothing  -> err ("Incorrect type: expected " ++ showTWit twitR ++ ", but found " ++ showTWit twitV) pos
 
 tDefinitions :: Typer [ProgElem Definition] ()
--- Process definitions in reverse as a definition may reference any identifier defined after it.
--- TODO It would be good to report errors from all definitions, but this would require two parses 
---      or some dependency ordering.
-tDefinitions = mapM_ tDefinition . reverse
+-- Sort definitions by dependency before typing.
+-- TODO It would be good to report errors from all definitions, but that is tricky because of dependencies.
+tDefinitions defs = sortDefs >>= mapM_ tDefinition
+    where
+      sortDefs = 
+          check
+        . map (right (M.fromList (map (getIdentifier &&& id) defs) M.!))
+        . topologicalSort
+        . M.fromList
+        . map (getIdentifier &&& findDeps)
+        $ defs
+      getIdentifier (PE _ (Definition i _)) = i
+      findDeps (PE _ (Definition _ e)) = findExprDeps e
+      -- TODO use uniplate os some other SYB
+      findExprDeps (PE _ (Reference     s  )) = [s]
+      findExprDeps (PE _ (Number        _  )) = []
+      findExprDeps (PE _ (Pairing       l r)) = findExprDeps l ++ findExprDeps r
+      findExprDeps (PE _ (Application   f v)) = findExprDeps f ++ findExprDeps v
+      findExprDeps (PE _ (Operation   _ l r)) = findExprDeps l ++ findExprDeps r
+      check = traverse (circErr ||| return)
+      circErr identifiers = err ("Circular definitions: " ++ intercalate ", " identifiers) (pePos . fromJust $ find (\(PE _ (Definition i _)) -> i == head identifiers) defs)
 
 tDefinition :: Typer (ProgElem Definition) ()
 tDefinition (PE pos (Definition identifier args e)) = do
@@ -144,4 +165,26 @@ tLambda (PE pos arg) e = do
 ----------------------------------------------------------------------
 
 typeProg :: Program -> TyperResult (LCExpr Picture)
-typeProg = flip evalStateT prelude . tProgram 
+typeProg = flip evalStateT prelude . tProgram
+
+
+----------------------------------------------------------------------
+-- Library
+----------------------------------------------------------------------
+
+topologicalSort :: Ord a => M.Map a [a] -> [Either [a] a]
+topologicalSort graph 
+    | M.null graph              = []
+    | (x, _) <- M.findMin graph = process [] x topologicalSort graph
+    where
+      process stack x cont graph
+        | x `elem` stack = 
+          Left (x : takeWhile (/= x) stack) : cont graph
+        | (Just deps, graph') <- lookupDelete x graph = 
+          foldr (process (x : stack)) ((Right x :) . cont) deps graph'
+        | otherwise =
+          cont graph
+
+lookupDelete :: Ord k => k -> M.Map k a -> (Maybe a, M.Map k a)
+lookupDelete = M.updateLookupWithKey (\_ _ -> Nothing)
+
