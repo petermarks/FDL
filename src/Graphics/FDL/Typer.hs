@@ -142,7 +142,7 @@ tDefinitions body defs = sortDefs >>= foldr tDefinition body
 
 tDefinition :: ProgElem Definition -> TyperM (LCExpr a) -> TyperM (LCExpr a)
 tDefinition (PE pos (Definition identifier args e)) body = do
-    Expr twit exp <- foldr tLambda (tExpression e) args
+    Expr twit exp <- isolate $ foldr tLambda (tExpression e) args
     exists        <- gets $ M.member identifier
     when exists $ err (identifier ++ " is already defined") pos
     let var = Var twit identifier
@@ -189,4 +189,12 @@ topologicalSort graph
 
 lookupDelete :: Ord k => k -> M.Map k a -> (Maybe a, M.Map k a)
 lookupDelete = M.updateLookupWithKey (\_ _ -> Nothing)
+
+-- | Ensure that no state changes escape - run the given action then restore the state to its previous value
+isolate :: (MonadState s m) => m a -> m a
+isolate m = do
+  s <- get
+  r <- m
+  put s
+  return r
 
