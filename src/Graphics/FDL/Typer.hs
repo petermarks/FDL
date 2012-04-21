@@ -62,9 +62,8 @@ err msg pos = StateT $ \_ -> TyperErrors [TyperError msg pos]
 ----------------------------------------------------------------------
 
 tProgram :: Typer Program (LCExpr Picture)
-tProgram (Program e ds) = do
-    tDefinitions  ds
-    tExpressionAs Picture_ e
+tProgram (Program e ds) =
+    tDefinitions (tExpressionAs Picture_ e) ds
 
 tExpression :: Typer (ProgElem Expression) Expr
 tExpression (PE pos (Reference ref)) = do
@@ -118,10 +117,10 @@ as twitR pos (Expr twitV v) = case twitV .=. twitR of
   Just TEq -> return v
   Nothing  -> err ("Incorrect type: expected " ++ showTWit twitR ++ ", but found " ++ showTWit twitV) pos
 
-tDefinitions :: Typer [ProgElem Definition] ()
+tDefinitions :: TyperM (LCExpr a) -> Typer [ProgElem Definition] (LCExpr a)
 -- Sort definitions by dependency before typing.
 -- TODO It would be good to report errors from all definitions, but that is tricky because of dependencies.
-tDefinitions defs = sortDefs >>= mapM_ tDefinition
+tDefinitions body defs = sortDefs >>= foldr tDefinition body
     where
       sortDefs = 
           check
@@ -141,13 +140,15 @@ tDefinitions defs = sortDefs >>= mapM_ tDefinition
       check = traverse (circErr ||| return)
       circErr identifiers = err ("Circular definitions: " ++ intercalate ", " identifiers) (pePos . fromJust $ find (\(PE _ (Definition i _ _)) -> i == head identifiers) defs)
 
-tDefinition :: Typer (ProgElem Definition) ()
-tDefinition (PE pos (Definition identifier args e)) = do
-    exp    <- foldr tLambda (tExpression e) args
-    exists <- gets $ M.member identifier
-    if exists
-      then err (identifier ++ " is already defined") pos
-      else modify $ M.insert identifier (Just exp)
+tDefinition :: ProgElem Definition -> TyperM (LCExpr a) -> TyperM (LCExpr a)
+tDefinition (PE pos (Definition identifier args e)) body = do
+    Expr twit exp <- foldr tLambda (tExpression e) args
+    exists        <- gets $ M.member identifier
+    when exists $ err (identifier ++ " is already defined") pos
+    let var = Var twit identifier
+    modify $ M.insert identifier . Just . Expr twit . VarRef $ var
+    bodyExp <- body
+    return $ Apply (Lambda var bodyExp) exp
 
 tLambda :: ProgElem String -> Typer (TyperM Expr) Expr
 tLambda (PE pos arg) e = do
